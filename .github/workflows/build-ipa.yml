@@ -147,8 +147,25 @@ jobs:
           echo "Found app at: $APP_PATH"
           echo "=== App Bundle Contents ==="
           ls -la "$APP_PATH"
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            echo "=== Frameworks Contents ==="
+            ls -la "$APP_PATH/Frameworks"
+          fi
           echo "=== Info.plist in App ==="
           plutil -p "$APP_PATH/Info.plist" || true
+
+          # Ad-hoc sign embedded frameworks and app bundle (prevents dyld code signature crash on sideloaded apps)
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            for fw in "$APP_PATH/Frameworks"/*.framework; do
+              if [ -d "$fw" ]; then
+                echo "Ad-hoc signing framework: $fw"
+                codesign --force --deep --sign - --timestamp=none "$fw" || true
+              fi
+            done
+          fi
+          echo "Ad-hoc signing main app bundle..."
+          codesign --force --deep --sign - --timestamp=none "$APP_PATH" || true
+
           mkdir -p "${{ env.IPA_DIR }}/Payload"
           cp -r "$APP_PATH" "${{ env.IPA_DIR }}/Payload/"
           cd "${{ env.IPA_DIR }}"
