@@ -14,6 +14,9 @@ struct SDLGameView: UIViewRepresentable {
         view.engine = engine
         view.isMultipleTouchEnabled = true
         view.backgroundColor = .black
+        // Without this the UIView won't grow to fill its SwiftUI container
+        // when the layout changes (e.g. device rotation or safe-area update).
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         return view
     }
 
