@@ -25,6 +25,10 @@ targets:
           - "**/*.plist"
     info:
       path: RenPyPlayer/Info.plist
+      properties:
+        UILaunchScreen_Generation: YES
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiresFullScreen: YES
     settings:
       base:
         PRODUCT_NAME: RenPyPlayer
@@ -36,6 +40,9 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         ALWAYS_SEARCH_USER_PATHS: NO
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: ""
         PROVISIONING_PROFILE_SPECIFIER: ""

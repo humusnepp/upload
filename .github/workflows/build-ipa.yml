@@ -104,6 +104,10 @@ jobs:
           fi
 
           echo "Found app at: $APP_PATH"
+          echo "=== App Bundle Contents ==="
+          ls -la "$APP_PATH"
+          echo "=== Info.plist in App ==="
+          plutil -p "$APP_PATH/Info.plist" || true
           mkdir -p "${{ env.IPA_DIR }}/Payload"
           cp -r "$APP_PATH" "${{ env.IPA_DIR }}/Payload/"
           cd "${{ env.IPA_DIR }}"

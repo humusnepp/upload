@@ -252,14 +252,20 @@ private struct StubGameOverlay: View {
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
 
-                VStack(spacing: 4) {
-                    Label("Game files verified & initialized", systemImage: "checkmark.seal.fill")
+                VStack(spacing: 6) {
+                    Label("Game Files Ready (Stub Mode)", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                         .font(.subheadline.weight(.semibold))
 
                     Text("Active Screen: \(Int(screenSize.width)) × \(Int(screenSize.height)) pt  •  Ratio: \(String(format: "%.2f", screenRatio)):1")
                         .font(.caption.monospaced())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.white.opacity(0.85))
+
+                    Text("⚠️ Note: The real Ren'Py binary runtime (Python 3 + SDL2) is not linked in this build. The app shell verified the game files, but drawing visual novel frames requires the 100MB+ native Ren'Py engine libraries.")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
                 }
 
                 Divider()
@@ -267,8 +273,8 @@ private struct StubGameOverlay: View {
                     .padding(.horizontal, 40)
 
                 Text("Tap top-right aspect ratio icon to toggle Full Screen (Edge-to-Edge) vs 16:9 Fit")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
             }
             .padding(28)
