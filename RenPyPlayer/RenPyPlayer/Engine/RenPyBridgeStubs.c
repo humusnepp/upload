@@ -64,11 +64,23 @@ int renpy_start(const char *gamePath, const char *savesPath) {
         char baseDir[1024];
         snprintf(baseDir, sizeof(baseDir), "%s/base", resourcePath);
 
+        char libDir[1024];
+        snprintf(libDir, sizeof(libDir), "%s/base/lib/python3.9", resourcePath);
+
+        char rootLibDir[1024];
+        snprintf(rootLibDir, sizeof(rootLibDir), "%s/lib/python3.9", resourcePath);
+
+        char zipDir[1024];
+        snprintf(zipDir, sizeof(zipDir), "%s/base/lib/python39.zip", resourcePath);
+
         // Configure environment variables for Ren'Py
         setenv("RENPY_PLATFORM", "ios-arm64", 1);
         if (strlen(resourcePath) > 0) {
             setenv("RENPY_BASE", baseDir, 1);
             setenv("PYTHONHOME", baseDir, 1);
+            char pythonPath[4096];
+            snprintf(pythonPath, sizeof(pythonPath), "%s:%s:%s:%s:%s", baseDir, libDir, rootLibDir, zipDir, gamePath);
+            setenv("PYTHONPATH", pythonPath, 1);
         }
 
         // Construct arguments for Ren'Py entry point

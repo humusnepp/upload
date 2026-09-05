@@ -56,28 +56,31 @@ jobs:
           cp -r /tmp/renios/renios/prototype/prebuilt/release/*.a RenPyPlayer/RenPyPlayer/Engine/libs/
           cp -r /tmp/renios/renios/prototype/Frameworks/MetalANGLE.xcframework RenPyPlayer/RenPyPlayer/Engine/Frameworks/
 
-          echo "Fetching Ren'Py SDK for core python engine files..."
-          curl -L --retry 3 "https://www.renpy.org/dl/8.3.4/renpy-8.3.4-sdk.zip" -o /tmp/renpy-sdk.zip
+          echo "Fetching Ren'Py 8.2.3 SDK (Python 3.9 engine & stdlib)..."
+          curl -L --retry 3 "https://www.renpy.org/dl/8.2.3/renpy-8.2.3-sdk.zip" -o /tmp/renpy-sdk.zip
           mkdir -p /tmp/renpy-sdk
           unzip -q /tmp/renpy-sdk.zip -d /tmp/renpy-sdk
 
-          echo "Staging core Ren'Py Python files..."
+          echo "Staging core Ren'Py Python files and stdlib..."
           mkdir -p RenPyPlayer/RenPyPlayer/Engine/base
-          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/renpy RenPyPlayer/RenPyPlayer/Engine/base/
-          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/renpy/common RenPyPlayer/RenPyPlayer/Engine/base/common
+          mkdir -p RenPyPlayer/RenPyPlayer/Engine/base/lib
+          mkdir -p RenPyPlayer/RenPyPlayer/Engine/lib
 
-          echo "Creating default main.py inside base..."
-          cat << 'EOF' > RenPyPlayer/RenPyPlayer/Engine/base/main.py
-          import sys
-          import os
-          import renpy
+          # Copy Ren'Py python packages
+          cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy RenPyPlayer/RenPyPlayer/Engine/base/
+          cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy/common RenPyPlayer/RenPyPlayer/Engine/base/common
 
-          def main():
-              renpy.bootstrap.bootstrap()
+          # Copy official renpy.py entry point as main.py
+          cp /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy.py RenPyPlayer/RenPyPlayer/Engine/base/main.py
 
-          if __name__ == "__main__":
-              main()
-          EOF
+          # Copy Python 3.9 standard library
+          cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/lib/python3.9 RenPyPlayer/RenPyPlayer/Engine/base/lib/python3.9
+          cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/lib/python3.9 RenPyPlayer/RenPyPlayer/Engine/lib/python3.9
+
+          # Create python39.zip for zipped import
+          (cd /tmp/renpy-sdk/renpy-8.2.3-sdk/lib/python3.9 && zip -rq /tmp/python39.zip .)
+          cp /tmp/python39.zip RenPyPlayer/RenPyPlayer/Engine/base/lib/python39.zip
+          cp /tmp/python39.zip RenPyPlayer/RenPyPlayer/Engine/lib/python39.zip
 
           echo "Staged libraries:"
           ls -lh RenPyPlayer/RenPyPlayer/Engine/libs/

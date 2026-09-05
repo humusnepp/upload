@@ -11,6 +11,8 @@ RenPyPlayer/RenPyPlayer/Engine/Frameworks/*
 !RenPyPlayer/RenPyPlayer/Engine/Frameworks/.gitkeep
 RenPyPlayer/RenPyPlayer/Engine/base/*
 !RenPyPlayer/RenPyPlayer/Engine/base/.gitkeep
+RenPyPlayer/RenPyPlayer/Engine/lib/*
+!RenPyPlayer/RenPyPlayer/Engine/lib/.gitkeep
 
 # XcodeGen-generated project (regenerated in CI)
 RenPyPlayer/RenPyPlayer.xcodeproj

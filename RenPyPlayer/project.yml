@@ -24,7 +24,11 @@ targets:
           - "**/*.md"
           - "**/*.plist"
           - "Engine/base/**"
+          - "Engine/lib/**"
       - path: RenPyPlayer/Engine/base
+        type: folder
+        optional: true
+      - path: RenPyPlayer/Engine/lib
         type: folder
         optional: true
     info:
