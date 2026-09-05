@@ -10,7 +10,11 @@ struct GamePlayerView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            Color.black.ignoresSafeArea()
+
             SDLGameView(engine: engine)
+                .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
 
             HStack {

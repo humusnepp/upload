@@ -11,7 +11,7 @@ struct LibraryView: View {
     // up through a Pro Max: the column count changes with screen width, but
     // every card keeps the same proportions instead of stretching or
     // cropping oddly on wider phones.
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 18)]
+    private let columns = [GridItem(.adaptive(minimum: 160, maximum: 300), spacing: 18)]
 
     var body: some View {
         NavigationStack {
@@ -112,18 +112,20 @@ private struct GameCell: View {
                    let uiImage = UIImage(contentsOfFile: thumbURL.path) {
                     Image(uiImage: uiImage)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(10)
+                        .aspectRatio(contentMode: .fill)
                 } else {
-                    Image(systemName: "photo.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(.secondary)
+                    VStack(spacing: 6) {
+                        Image(systemName: "gamecontroller.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(AppStyle.accent)
+                        Text("16:9")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            // A fixed aspect ratio, not a fixed height, is what makes each
-            // card scale correctly as the grid's column count changes across
-            // different iPhone widths.
-            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            // 16:9 widescreen aspect ratio matching standard Ren'Py game resolutions (1920x1080 / 1280x720)
+            .aspectRatio(16.0 / 9.0, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
 

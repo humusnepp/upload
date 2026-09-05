@@ -101,7 +101,10 @@ struct GameImporter {
     /// the project inside a version-named folder.
     private static func locateGameRoot(under root: URL, maxDepth: Int = 3) -> URL? {
         func hasGameFolder(_ dir: URL) -> Bool {
-            FileManager.default.fileExists(atPath: dir.appendingPathComponent("game", isDirectory: true).path)
+            let fm = FileManager.default
+            let pathLower = dir.appendingPathComponent("game", isDirectory: true).path
+            let pathUpper = dir.appendingPathComponent("Game", isDirectory: true).path
+            return fm.fileExists(atPath: pathLower) || fm.fileExists(atPath: pathUpper)
         }
         if hasGameFolder(root) { return root }
 
@@ -124,15 +127,22 @@ struct GameImporter {
         let contents = try fm.contentsOfDirectory(at: gameRoot, includingPropertiesForKeys: nil)
         for item in contents {
             let target = destination.appendingPathComponent(item.lastPathComponent)
-            if fm.fileExists(atPath: target.path) { continue }
+            if fm.fileExists(atPath: target.path) {
+                try? fm.removeItem(at: target)
+            }
             try fm.moveItem(at: item, to: target)
         }
-        var dir = gameRoot
-        while dir != destination {
-            if (try? fm.contentsOfDirectory(atPath: dir.path))?.isEmpty == true {
-                try? fm.removeItem(at: dir)
+
+        // Clean up the now-empty source hierarchy inside destination
+        let destPath = destination.standardizedFileURL.path
+        var current = gameRoot.standardizedFileURL
+        while current.path != destPath && current.path.hasPrefix(destPath) && current.path != "/" {
+            let parent = current.deletingLastPathComponent()
+            if parent.path == destPath {
+                try? fm.removeItem(at: current)
+                break
             }
-            dir = dir.deletingLastPathComponent()
+            current = parent
         }
     }
 }
