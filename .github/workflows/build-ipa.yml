@@ -64,7 +64,7 @@ jobs:
           echo "Staging core Ren'Py Python files..."
           mkdir -p RenPyPlayer/RenPyPlayer/Engine/base
           cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/renpy RenPyPlayer/RenPyPlayer/Engine/base/
-          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/common RenPyPlayer/RenPyPlayer/Engine/base/
+          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/renpy/common RenPyPlayer/RenPyPlayer/Engine/base/common
 
           echo "Creating default main.py inside base..."
           cat << 'EOF' > RenPyPlayer/RenPyPlayer/Engine/base/main.py
