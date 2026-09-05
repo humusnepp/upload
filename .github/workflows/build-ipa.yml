@@ -68,6 +68,7 @@ jobs:
       # ── 6. Build for generic iOS device (unsigned) ─────────────────────────
       - name: Build (unsigned, generic/platform=iOS)
         run: |
+          set -o pipefail
           xcodebuild build \
             -project "${{ env.PROJECT }}" \
             -scheme "${{ env.SCHEME }}" \
@@ -78,20 +79,25 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            | xcpretty || true
+            | xcpretty
+
+      # ── 6b. Show DerivedData tree (debug) ─────────────────────────────────
+      - name: List DerivedData build products
+        if: always()
+        run: find "${{ env.DERIVED_DATA }}" -name "*.app" -o -name "*.o" -maxdepth 8 2>/dev/null | head -40 || true
 
       # ── 7. Package .app → .ipa ─────────────────────────────────────────────
       - name: Package unsigned IPA
         run: |
           set -euo pipefail
+          # Search broadly — path may vary by Xcode/DerivedData layout
           APP_PATH=$(find "${{ env.DERIVED_DATA }}" \
-            -name "RenPyPlayer.app" \
-            -path "*/Release-iphoneos/*" \
+            -name "RenPyPlayer.app" -type d \
             | head -1)
 
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: RenPyPlayer.app not found under ${{ env.DERIVED_DATA }}"
-            find "${{ env.DERIVED_DATA }}" -name "*.app" || true
+            find "${{ env.DERIVED_DATA }}" -maxdepth 8 -name "*.app" || true
             exit 1
           fi
 
