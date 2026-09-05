@@ -13,78 +13,100 @@ struct GamePlayerView: View {
     @State private var hudVisible = true
 
     var body: some View {
-        ZStack {
-            // ── Background ────────────────────────────────────────────────
-            Color.black
+        GeometryReader { proxy in
+            let screenSize = proxy.size
+            let screenRatio = screenSize.height > 0 ? (screenSize.width / screenSize.height) : (16.0 / 9.0)
 
-            // ── Game surface (always fills the screen; SDL handles its own
-            //    aspect-ratio scaling once the real SDK is linked) ─────────
-            SDLGameView(engine: engine)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                // ── Deep black background for pillarbox borders ───────────
+                Color.black.ignoresSafeArea()
 
-            // ── Stub-mode placeholder rendered on top of the SDL surface ──
-            // When the real Ren'Py SDK is linked SDL will draw into the
-            // underlying UIView and this overlay will be replaced by actual
-            // game frames. Until then, show something informative.
-            if engine.state == .running {
-                StubGameOverlay(game: game)
-            }
+                // ── Game surface with selectable aspect ratio ─────────────
+                Group {
+                    switch settings.displayMode {
+                    case .edgeToEdge, .stretch:
+                        // Edge-to-edge: fills 100% of the display including Dynamic Island and notch
+                        SDLGameView(engine: engine)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    case .fit16x9:
+                        // 16:9 Fit: preserves exact widescreen proportion with pillarbox
+                        SDLGameView(engine: engine)
+                            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .ignoresSafeArea()
 
-            // ── Failure card ──────────────────────────────────────────────
-            if case .failed(let message) = engine.state {
-                errorCard(message: message)
-            }
+                // ── Stub-mode placeholder overlay ─────────────────────────
+                // Rendered on top of the black SDL surface when running without
+                // the full native Ren'Py runtime linked. Displays live display metrics.
+                if engine.state == .running {
+                    StubGameOverlay(game: game, screenSize: screenSize, screenRatio: screenRatio)
+                }
 
-            // ── HUD (tap anywhere to toggle) ──────────────────────────────
-            if hudVisible || engine.state != .running {
-                VStack {
-                    HStack(spacing: 16) {
-                        Button {
-                            engine.stop()
-                            dismiss()
-                        } label: {
-                            Image(systemName: "chevron.backward.circle.fill")
-                                .font(.title)
+                // ── Error card on failure ─────────────────────────────────
+                if case .failed(let message) = engine.state {
+                    errorCard(message: message)
+                }
+
+                // ── On-screen HUD ─────────────────────────────────────────
+                if hudVisible || engine.state != .running {
+                    VStack {
+                        HStack(spacing: 18) {
+                            Button {
+                                engine.stop()
+                                dismiss()
+                            } label: {
+                                Image(systemName: "chevron.backward.circle.fill")
+                                    .font(.title)
+                            }
+
+                            Spacer()
+
+                            // Screen Aspect Ratio Switcher Button
+                            Button {
+                                withAnimation {
+                                    cycleDisplayMode()
+                                }
+                            } label: {
+                                Image(systemName: settings.displayMode.icon)
+                                    .font(.title2)
+                            }
+
+                            Button { showDiagnosticsSheet = true } label: {
+                                Image(systemName: "terminal.fill")
+                                    .font(.title2)
+                            }
+
+                            Button { showVirtualKeyboard.toggle() } label: {
+                                Image(systemName: showVirtualKeyboard ? "keyboard.fill" : "keyboard")
+                                    .font(.title2)
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 12)
+                        .foregroundStyle(.white.opacity(0.85))
+
+                        if let msg = hudToastMessage {
+                            Text(msg)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .padding(.top, 8)
+                                .transition(.opacity.combined(with: .scale(scale: 0.9)))
                         }
 
                         Spacer()
-
-                        Button { showDiagnosticsSheet = true } label: {
-                            Image(systemName: "terminal.fill")
-                                .font(.title2)
-                        }
-
-                        Button { showVirtualKeyboard.toggle() } label: {
-                            Image(systemName: showVirtualKeyboard ? "keyboard.fill" : "keyboard")
-                                .font(.title2)
-                        }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-                    .foregroundStyle(.white.opacity(0.85))
-
-                    if let msg = hudToastMessage {
-                        Text(msg)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .padding(.top, 8)
-                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    }
-
-                    Spacer()
                 }
             }
         }
-        // ── This is the critical fix: apply ignoresSafeArea to the whole
-        //    ZStack so the game truly fills edge-to-edge on all iPhones ──
         .ignoresSafeArea()
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onTapGesture {
-            // Tap screen to show/hide HUD while game is running
             if engine.state == .running {
                 withAnimation(.easeInOut(duration: 0.2)) { hudVisible.toggle() }
             }
@@ -101,11 +123,45 @@ struct GamePlayerView: View {
             DiagnosticsSheet(engine: engine, game: game)
         }
         .onAppear {
+            // Lock orientation into landscape for widescreen visual novel gaming
+            AppDelegate.orientationLock = .landscape
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
+                    print("Landscape orientation update: \(error.localizedDescription)")
+                }
+            }
+
             engine.setDisplayScale(settings.screenScale)
             engine.start(game: game)
         }
         .onDisappear {
+            // Restore all orientations when exiting player
+            AppDelegate.orientationLock = .all
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .all))
+            }
             engine.stop()
+        }
+    }
+
+    private func cycleDisplayMode() {
+        switch settings.displayMode {
+        case .edgeToEdge:
+            settings.displayMode = .fit16x9
+            showToast("Display: 16:9 Fit (Pillarbox)")
+        case .fit16x9:
+            settings.displayMode = .stretch
+            showToast("Display: Stretch to Fill")
+        case .stretch:
+            settings.displayMode = .edgeToEdge
+            showToast("Display: Full Screen Edge-to-Edge")
+        }
+    }
+
+    private func showToast(_ msg: String) {
+        withAnimation { hudToastMessage = msg }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation { if hudToastMessage == msg { hudToastMessage = nil } }
         }
     }
 
@@ -157,15 +213,8 @@ struct GamePlayerView: View {
         .background(.regularMaterial,
                     in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: .black.opacity(0.4), radius: 24, x: 0, y: 12)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
         .frame(maxHeight: .infinity, alignment: .center)
-    }
-
-    private func showToast(_ msg: String) {
-        withAnimation { hudToastMessage = msg }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation { if hudToastMessage == msg { hudToastMessage = nil } }
-        }
     }
 
     private func copyErrorReport(message: String) {
@@ -178,20 +227,20 @@ struct GamePlayerView: View {
 }
 
 // ── Stub overlay ─────────────────────────────────────────────────────────────
-/// Shown over the black SDL surface when the real Ren'Py SDK is not yet linked.
-/// Once the SDK is linked and `renpy_start` draws into the SDL view this overlay
-/// should be removed (or conditionally hidden via a compile-time flag).
+/// Shown over the SDL surface when the real Ren'Py SDK is not yet linked.
+/// Displays live screen dimensions and ratio to verify display geometry.
 private struct StubGameOverlay: View {
     let game: Game
+    let screenSize: CGSize
+    let screenRatio: CGFloat
 
     var body: some View {
         ZStack {
-            // Dim the surface to make the text readable
-            Color.black.opacity(0.72)
+            Color.black.opacity(0.70)
 
-            VStack(spacing: 20) {
+            VStack(spacing: 14) {
                 Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: 56))
+                    .font(.system(size: 48))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [Color(red: 0.42, green: 0.36, blue: 0.98),
@@ -203,25 +252,28 @@ private struct StubGameOverlay: View {
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
 
-                Divider()
-                    .background(Color.white.opacity(0.2))
-
-                VStack(spacing: 6) {
-                    Label("Game files loaded", systemImage: "checkmark.seal.fill")
+                VStack(spacing: 4) {
+                    Label("Game files verified & initialized", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.green)
                         .font(.subheadline.weight(.semibold))
-                    Text("To see actual game frames, link the Ren'Py iOS SDK.\nSee README.md for integration steps.")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .multilineTextAlignment(.center)
+
+                    Text("Active Screen: \(Int(screenSize.width)) × \(Int(screenSize.height)) pt  •  Ratio: \(String(format: "%.2f", screenRatio)):1")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.white.opacity(0.8))
                 }
 
-                Text("Engine running in stub mode")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
-                    .padding(.top, 4)
+                Divider()
+                    .background(Color.white.opacity(0.2))
+                    .padding(.horizontal, 40)
+
+                Text("Tap top-right aspect ratio icon to toggle Full Screen (Edge-to-Edge) vs 16:9 Fit")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
             }
-            .padding(32)
+            .padding(28)
+            .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 20))
+            .padding(.horizontal, 30)
         }
     }
 }

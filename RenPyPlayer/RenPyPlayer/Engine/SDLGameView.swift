@@ -40,6 +40,13 @@ final class TouchForwardingView: UIView {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         forward(touches, phase: .ended)
     }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        for sublayer in layer.sublayers ?? [] {
+            sublayer.frame = bounds
+        }
+    }
+
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         forward(touches, phase: .cancelled)
     }

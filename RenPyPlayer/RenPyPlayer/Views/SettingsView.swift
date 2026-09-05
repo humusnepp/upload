@@ -8,8 +8,10 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle(isOn: $settings.fillScreen) {
-                        Label("Fill Phone Screen", systemImage: "arrow.up.left.and.arrow.down.right.and.arrow.up.right.and.arrow.down.left")
+                    Picker("Aspect Mode", selection: $settings.displayMode) {
+                        ForEach(DisplayScalingMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
                     }
                     HStack {
                         Label("Screen Scale", systemImage: "arrow.up.left.and.arrow.down.right")
