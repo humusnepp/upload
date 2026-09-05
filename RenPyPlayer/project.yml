@@ -101,6 +101,7 @@ targets:
           - "-framework QuartzCore"
           - "-framework UIKit"
           - "-framework Foundation"
+          - "-framework StoreKit"
     dependencies:
       - package: ZIPFoundation
       - framework: RenPyPlayer/Engine/Frameworks/MetalANGLE.xcframework

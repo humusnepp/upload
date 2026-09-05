@@ -56,6 +56,11 @@ jobs:
           cp -r /tmp/renios/renios/prototype/prebuilt/release/*.a RenPyPlayer/RenPyPlayer/Engine/libs/
           cp -r /tmp/renios/renios/prototype/Frameworks/MetalANGLE.xcframework RenPyPlayer/RenPyPlayer/Engine/Frameworks/
 
+          echo "Staging Ren'Py iOS runtime Objective-C support files (Log.m, VideoPlayer.m, IAPHelper.m)..."
+          cp -f /tmp/renios/renios/prototype/Log.m RenPyPlayer/RenPyPlayer/Engine/
+          cp -f /tmp/renios/renios/prototype/VideoPlayer.m RenPyPlayer/RenPyPlayer/Engine/
+          cp -f /tmp/renios/renios/prototype/IAPHelper.m RenPyPlayer/RenPyPlayer/Engine/
+
           echo "Fetching Ren'Py 8.2.3 SDK (Python 3.9 engine & stdlib)..."
           curl -L --retry 3 "https://www.renpy.org/dl/8.2.3/renpy-8.2.3-sdk.zip" -o /tmp/renpy-sdk.zip
           mkdir -p /tmp/renpy-sdk
@@ -69,6 +74,30 @@ jobs:
           # Copy Ren'Py python packages
           cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy RenPyPlayer/RenPyPlayer/Engine/base/
           cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy/common RenPyPlayer/RenPyPlayer/Engine/base/common
+
+          # Ensure LogFile handles pickling gracefully
+          python3 -c "
+fn = 'RenPyPlayer/RenPyPlayer/Engine/base/renpy/log.py'
+with open(fn, 'r') as f:
+    code = f.read()
+if '__getstate__' not in code:
+    patch = '''
+    def __getstate__(self):
+        d = dict(self.__dict__)
+        d['file'] = None
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+        if renpy.ios:
+            self.file = real_stdout
+'''
+    code = code.replace('class LogFile(object):', 'class LogFile(object):' + patch)
+    with open(fn, 'w') as f:
+        f.write(code)
+    print('Patched LogFile __getstate__ in', fn)
+"
+          rm -f RenPyPlayer/RenPyPlayer/Engine/base/renpy/log.pyc
 
           # Copy official renpy.py entry point as main.py
           cp /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy.py RenPyPlayer/RenPyPlayer/Engine/base/main.py
