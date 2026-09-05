@@ -31,7 +31,10 @@ jobs:
           curl -L https://github.com/yonaskolb/XcodeGen/releases/download/2.41.0/xcodegen.zip \
             -o /tmp/xcodegen.zip
           unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dir
-          sudo cp /tmp/xcodegen_dir/xcodegen /usr/local/bin/xcodegen
+          # The zip nests the binary inside a subdirectory — find it by type
+          XCODEGEN_BIN=$(find /tmp/xcodegen_dir -name "xcodegen" -type f | head -1)
+          echo "Found binary at: $XCODEGEN_BIN"
+          sudo cp "$XCODEGEN_BIN" /usr/local/bin/xcodegen
           xcodegen version
 
       # ── 3b. Install xcpretty for cleaner build logs ────────────────────────
