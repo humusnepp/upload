@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
+#include <execinfo.h>
 #include <CoreFoundation/CoreFoundation.h>
 
 // Weak symbol declarations so the bridge safely invokes the real Ren'Py
@@ -25,22 +27,75 @@ extern int SDL_PushEvent(void *event) __attribute__((weak));
 static bool s_running = false;
 static float s_scale = 1.0f;
 static char s_log_path[1024] = {0};
+static char s_crash_path[1024] = {0};
 
 const char *renpy_get_log_path(void) {
     return s_log_path;
 }
 
+const char *renpy_get_crash_path(void) {
+    return s_crash_path;
+}
+
+static void crash_signal_handler(int sig, siginfo_t *info, void *ucontext) {
+    const char *name = "UNKNOWN";
+    if (sig == SIGSEGV) name = "SIGSEGV (Memory Access Violation / Null Pointer)";
+    else if (sig == SIGABRT) name = "SIGABRT (Abort / Assertion Failure)";
+    else if (sig == SIGBUS) name = "SIGBUS (Bus Error)";
+    else if (sig == SIGILL) name = "SIGILL (Illegal Instruction)";
+    else if (sig == SIGFPE) name = "SIGFPE (Floating Point Exception)";
+
+    fprintf(stderr, "\n========================================\n");
+    fprintf(stderr, "💥 CRITICAL NATIVE SIGNAL CRASH: %s (signal %d)\n", name, sig);
+    fprintf(stderr, "Faulting address: %p\n", info ? info->si_addr : NULL);
+    fprintf(stderr, "Call stack:\n");
+
+    void *callstack[64];
+    int frames = backtrace(callstack, 64);
+    char **strs = backtrace_symbols(callstack, frames);
+    if (strs) {
+        for (int i = 0; i < frames; ++i) {
+            fprintf(stderr, "  #%02d %s\n", i, strs[i]);
+        }
+    }
+    fprintf(stderr, "========================================\n");
+    fflush(stderr);
+
+    if (strlen(s_crash_path) > 0) {
+        FILE *cf = fopen(s_crash_path, "a");
+        if (cf) {
+            fprintf(cf, "\n💥 CRITICAL NATIVE SIGNAL CRASH: %s (signal %d)\n", name, sig);
+            fprintf(cf, "Faulting address: %p\n", info ? info->si_addr : NULL);
+            if (strs) {
+                for (int i = 0; i < frames; ++i) {
+                    fprintf(cf, "  #%02d %s\n", i, strs[i]);
+                }
+            }
+            fprintf(cf, "========================================\n");
+            fclose(cf);
+        }
+    }
+
+    if (strs) free(strs);
+
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
 static void setup_stdio_redirection(const char *savesPath) {
     if (savesPath && strlen(savesPath) > 0) {
         snprintf(s_log_path, sizeof(s_log_path), "%s/engine_output.log", savesPath);
+        snprintf(s_crash_path, sizeof(s_crash_path), "%s/crash_report.log", savesPath);
     } else {
         snprintf(s_log_path, sizeof(s_log_path), "/tmp/engine_output.log");
+        snprintf(s_crash_path, sizeof(s_crash_path), "/tmp/crash_report.log");
     }
 
     fflush(stdout);
     fflush(stderr);
 
-    int fd = open(s_log_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    // Open in append mode so crash history from previous runs is never lost
+    int fd = open(s_log_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd >= 0) {
         dup2(fd, STDOUT_FILENO);
         dup2(fd, STDERR_FILENO);
@@ -53,7 +108,20 @@ static void setup_stdio_redirection(const char *savesPath) {
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    fprintf(stdout, "[RenPyBridge] Stdio redirected to: %s\n", s_log_path);
+    // Register native signal handlers
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = crash_signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGFPE, &sa, NULL);
+
+    fprintf(stdout, "\n========================================\n");
+    fprintf(stdout, "[RenPyBridge] Session starting. Stdio redirected to: %s\n", s_log_path);
+    fprintf(stdout, "========================================\n");
     fflush(stdout);
 }
 

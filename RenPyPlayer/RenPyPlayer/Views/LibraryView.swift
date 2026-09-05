@@ -4,7 +4,9 @@ struct LibraryView: View {
     @EnvironmentObject private var library: GameLibrary
     @State private var showImporter = false
     @State private var showSettings = false
-    @State private var gameToLaunch: Game?
+    @State private var showCrashReport = false
+    @State private var crashReportText: String?
+    @State private var recentEngineLog: String = ""
 
     // .adaptive + a card that sizes itself by aspect ratio (rather than a
     // fixed height) is what keeps the grid looking right from an iPhone SE
@@ -18,27 +20,52 @@ struct LibraryView: View {
             ZStack {
                 AppBackground()
 
-                Group {
-                    if library.games.isEmpty {
-                        emptyState
-                    } else {
-                        ScrollView {
-                            LazyVGrid(columns: columns, spacing: 22) {
-                                ForEach(library.games) { game in
-                                    GameCell(game: game)
-                                        .onTapGesture { gameToLaunch = game }
-                                        .contextMenu {
-                                            Button(role: .destructive) {
-                                                withAnimation { library.removeGame(game) }
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
-                                        }
-                                }
+                VStack(spacing: 0) {
+                    if let crashText = crashReportText {
+                        Button {
+                            showCrashReport = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text("Previous crash report detected — Tap to view")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.6))
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color.red.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
                             .padding(.horizontal)
-                            .padding(.top, 8)
-                            .padding(.bottom, 24)
+                            .padding(.top, 6)
+                        }
+                    }
+
+                    Group {
+                        if library.games.isEmpty {
+                            emptyState
+                        } else {
+                            ScrollView {
+                                LazyVGrid(columns: columns, spacing: 22) {
+                                    ForEach(library.games) { game in
+                                        GameCell(game: game)
+                                            .onTapGesture { gameToLaunch = game }
+                                            .contextMenu {
+                                                Button(role: .destructive) {
+                                                    withAnimation { library.removeGame(game) }
+                                                } label: {
+                                                    Label("Delete", systemImage: "trash")
+                                                }
+                                            }
+                                    }
+                                }
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                                .padding(.bottom, 24)
+                            }
                         }
                     }
                 }
@@ -46,8 +73,17 @@ struct LibraryView: View {
             .navigationTitle("My Games")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
+                    HStack(spacing: 12) {
+                        Button { showSettings = true } label: {
+                            Image(systemName: "gearshape.fill")
+                        }
+
+                        Button {
+                            loadLogs()
+                            showCrashReport = true
+                        } label: {
+                            Image(systemName: "doc.plaintext.fill")
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -63,8 +99,45 @@ struct LibraryView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showCrashReport) {
+                CrashReportViewerSheet(crashReport: crashReportText, engineLog: recentEngineLog)
+            }
             .fullScreenCover(item: $gameToLaunch) { game in
                 GamePlayerView(game: game)
+            }
+            .onAppear {
+                loadLogs()
+            }
+        }
+    }
+
+    private func loadLogs() {
+        let fm = FileManager.default
+        let docURL = fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let crashFile = docURL.appendingPathComponent("crash_report.log")
+        if fm.fileExists(atPath: crashFile.path),
+           let text = try? String(contentsOf: crashFile, encoding: .utf8),
+           !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            crashReportText = text
+        }
+
+        // Check saves directory for logs
+        let savesDir = docURL.appendingPathComponent("Saves")
+        if let subs = try? fm.contentsOfDirectory(atPath: savesDir.path) {
+            for sub in subs {
+                let crashInSave = savesDir.appendingPathComponent(sub).appendingPathComponent("crash_report.log")
+                if fm.fileExists(atPath: crashInSave.path),
+                   let text = try? String(contentsOf: crashInSave, encoding: .utf8),
+                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    crashReportText = text
+                }
+
+                let logInSave = savesDir.appendingPathComponent(sub).appendingPathComponent("engine_output.log")
+                if fm.fileExists(atPath: logInSave.path),
+                   let text = try? String(contentsOf: logInSave, encoding: .utf8),
+                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    recentEngineLog = text
+                }
             }
         }
     }
@@ -133,6 +206,53 @@ private struct GameCell: View {
                 .font(.subheadline.weight(.medium))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct CrashReportViewerSheet: View {
+    let crashReport: String?
+    let engineLog: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let cr = crashReport {
+                    Section("💥 Crash Report") {
+                        Text(cr)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section("Engine Output / Python Logs") {
+                    if engineLog.isEmpty {
+                        Text("No engine logs recorded yet.").foregroundStyle(.secondary)
+                    } else {
+                        Text(engineLog)
+                            .font(.caption2.monospaced())
+                    }
+                }
+            }
+            .navigationTitle("Diagnostics & Crash Logs")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(copied ? "Copied!" : "Copy All") {
+                        var all = ""
+                        if let cr = crashReport { all += "=== CRASH REPORT ===\n" + cr + "\n\n" }
+                        all += "=== ENGINE LOGS ===\n" + engineLog
+                        UIPasteboard.general.string = all
+                        copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }

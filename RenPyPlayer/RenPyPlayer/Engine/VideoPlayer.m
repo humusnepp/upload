@@ -27,17 +27,34 @@
 @implementation VideoPlayer
 
 - (id) initWithFile: (char *) fn {
+static UIWindow *get_active_window(void) {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            for (UIWindow *w in windowScene.windows) {
+                if (w.isKeyWindow) return w;
+            }
+            if (windowScene.windows.count > 0) return windowScene.windows.firstObject;
+        }
+    }
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wdeprecated"
+    return [[UIApplication sharedApplication] keyWindow];
+    #pragma clang diagnostic pop
+}
+
+- (id) initWithFile: (char *) fn {
     self = [ super init ];
-    if (!self) {
+    if (!self || !fn) {
         return nil;
     }
 
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wdeprecated"
-    window = [[ UIApplication sharedApplication] keyWindow];
-    #pragma clang diagnostic pop
+    window = get_active_window();
 
     NSString *string = [NSString stringWithUTF8String: fn];
+    if (!string) {
+        return nil;
+    }
     NSURL *url = [ NSURL fileURLWithPath: string ];
     player = [ AVPlayer playerWithURL: url ];
 
@@ -47,10 +64,13 @@
     vpv.opaque = YES;
     vpv.backgroundColor = [ UIColor blackColor ];
 
-    vpv.frame = window.frame;
-
-    if (window.subviews.count > 0) {
-        [[window.subviews objectAtIndex: 0] addSubview: vpv];
+    if (window) {
+        vpv.frame = window.bounds;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self->window) {
+                [self->window addSubview: self->vpv];
+            }
+        });
     }
 
     printf("Initialized VP with file %s\n", fn);

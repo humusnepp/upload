@@ -50,4 +50,7 @@ bool renpy_is_native(void);
 /// Returns the path to the engine stdout/stderr log file.
 const char *renpy_get_log_path(void);
 
+/// Returns the path to the crash report file.
+const char *renpy_get_crash_path(void);
+
 #endif /* RenPyBridge_h */
