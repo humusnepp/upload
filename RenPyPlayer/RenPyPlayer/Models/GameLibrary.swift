@@ -7,13 +7,13 @@ final class GameLibrary: ObservableObject {
 
     private let indexFileName = "library_index.json"
 
-    static var documentsURL: URL {
+    nonisolated static var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
-    static var gamesRootURL: URL {
+    nonisolated static var gamesRootURL: URL {
         documentsURL.appendingPathComponent("Games", isDirectory: true)
     }
-    static var savesRootURL: URL {
+    nonisolated static var savesRootURL: URL {
         documentsURL.appendingPathComponent("Saves", isDirectory: true)
     }
 
