@@ -46,13 +46,13 @@ final class RenPyEngineBridge: ObservableObject {
             }
 
             guard result == 0 else {
-                await MainActor.run { self?.state = .failed("renpy_start returned \(result)") }
+                await self?.setState(.failed("renpy_start returned \(result)"))
                 return
             }
 
-            await MainActor.run { self?.state = .running }
+            await self?.setState(.running)
 
-            while await self?.state == .running {
+            while (await self?.state) == .running {
                 let stillRunning = renpy_pump()
                 if !stillRunning { break }
                 // Ren'Py/SDL drive their own frame pacing internally; this
@@ -61,8 +61,12 @@ final class RenPyEngineBridge: ObservableObject {
                 try? await Task.sleep(nanoseconds: 1_000_000)
             }
 
-            await MainActor.run { self?.state = .stopped }
+            await self?.setState(.stopped)
         }
+    }
+
+    private func setState(_ newState: RenPyEngineState) {
+        self.state = newState
     }
 
     func stop() {
