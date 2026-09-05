@@ -44,4 +44,7 @@ void renpy_send_text_codepoint(uint32_t codepoint);
 /// whenever the user changes it in Settings.
 void renpy_set_display_scale(float scale);
 
+/// Returns true if the native Ren'Py binary runtime is linked and active.
+bool renpy_is_native(void);
+
 #endif /* RenPyBridge_h */

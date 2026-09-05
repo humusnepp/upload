@@ -27,7 +27,9 @@ struct GamePlayerView: View {
                     .ignoresSafeArea()
 
                 // ── Engine overlay ────────────────────────────────────────
-                if engine.state == .running {
+                // Display placeholder overlay only when running in stub mode.
+                // When native Ren'Py runtime is linked, SDL draws directly to the screen.
+                if engine.state == .running && !engine.isNativeEngine {
                     StubGameOverlay(game: game, screenSize: screenSize, screenRatio: screenRatio)
                 }
 

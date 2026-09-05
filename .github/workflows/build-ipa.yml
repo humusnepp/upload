@@ -41,6 +41,47 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty --no-document
 
+      # ── 3c. Download and stage Ren'Py iOS SDK & prebuilt libraries ─────────
+      - name: Download and stage Ren'Py iOS SDK
+        run: |
+          set -e
+          echo "Fetching Ren'Py iOS support package (renios)..."
+          curl -L --retry 3 "https://www.renpy.org/dl/8.3.4/renpy-8.3.4-renios.zip" -o /tmp/renios.zip
+          mkdir -p /tmp/renios
+          unzip -q /tmp/renios.zip -d /tmp/renios
+
+          echo "Staging static libraries and MetalANGLE xcframework..."
+          mkdir -p RenPyPlayer/RenPyPlayer/Engine/libs
+          mkdir -p RenPyPlayer/RenPyPlayer/Engine/Frameworks
+          cp -r /tmp/renios/renios/prototype/prebuilt/release/*.a RenPyPlayer/RenPyPlayer/Engine/libs/
+          cp -r /tmp/renios/renios/prototype/Frameworks/MetalANGLE.xcframework RenPyPlayer/RenPyPlayer/Engine/Frameworks/
+
+          echo "Fetching Ren'Py SDK for core python engine files..."
+          curl -L --retry 3 "https://www.renpy.org/dl/8.3.4/renpy-8.3.4-sdk.zip" -o /tmp/renpy-sdk.zip
+          mkdir -p /tmp/renpy-sdk
+          unzip -q /tmp/renpy-sdk.zip -d /tmp/renpy-sdk
+
+          echo "Staging core Ren'Py Python files..."
+          mkdir -p RenPyPlayer/RenPyPlayer/Engine/base
+          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/renpy RenPyPlayer/RenPyPlayer/Engine/base/
+          cp -r /tmp/renpy-sdk/renpy-8.3.4-sdk/common RenPyPlayer/RenPyPlayer/Engine/base/
+
+          echo "Creating default main.py inside base..."
+          cat << 'EOF' > RenPyPlayer/RenPyPlayer/Engine/base/main.py
+          import sys
+          import os
+          import renpy
+
+          def main():
+              renpy.bootstrap.bootstrap()
+
+          if __name__ == "__main__":
+              main()
+          EOF
+
+          echo "Staged libraries:"
+          ls -lh RenPyPlayer/RenPyPlayer/Engine/libs/
+
       # ── 4. Generate .xcodeproj from project.yml ────────────────────────────
       - name: Generate Xcode project
         run: xcodegen generate --spec project.yml

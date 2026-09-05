@@ -23,6 +23,10 @@ targets:
         excludes:
           - "**/*.md"
           - "**/*.plist"
+          - "Engine/base/**"
+      - path: RenPyPlayer/Engine/base
+        type: folder
+        optional: true
     info:
       path: RenPyPlayer/Info.plist
       properties:
@@ -46,5 +50,51 @@ targets:
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: ""
         PROVISIONING_PROFILE_SPECIFIER: ""
+        LIBRARY_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/RenPyPlayer/Engine/libs"
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/RenPyPlayer/Engine/Frameworks"
+        OTHER_LDFLAGS:
+          - "-lrenpython"
+          - "-lrenpy"
+          - "-lpython3.9"
+          - "-lavformat"
+          - "-lavcodec"
+          - "-lswscale"
+          - "-lswresample"
+          - "-lavutil"
+          - "-lSDL2_image"
+          - "-lSDL2"
+          - "-lavif"
+          - "-laom"
+          - "-lyuv"
+          - "-lturbojpeg"
+          - "-lpng16"
+          - "-lwebp"
+          - "-lharfbuzz"
+          - "-lbrotlidec"
+          - "-lfribidi"
+          - "-lfreetype"
+          - "-lffi"
+          - "-lssl"
+          - "-lcrypto"
+          - "-llzma"
+          - "-lbz2"
+          - "-lz"
+          - "-framework Metal"
+          - "-framework OpenGLES"
+          - "-framework AVFoundation"
+          - "-framework AudioToolbox"
+          - "-framework CoreAudio"
+          - "-framework CoreGraphics"
+          - "-framework CoreMotion"
+          - "-framework GameController"
+          - "-framework QuartzCore"
+          - "-framework UIKit"
+          - "-framework Foundation"
     dependencies:
       - package: ZIPFoundation
+      - framework: RenPyPlayer/Engine/Frameworks/MetalANGLE.xcframework
+        embed: true

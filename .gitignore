@@ -4,6 +4,14 @@ DerivedData/
 *.xcarchive
 *.ipa
 
+# Ren'Py SDK and prebuilt binaries (downloaded in CI)
+RenPyPlayer/RenPyPlayer/Engine/libs/*
+!RenPyPlayer/RenPyPlayer/Engine/libs/.gitkeep
+RenPyPlayer/RenPyPlayer/Engine/Frameworks/*
+!RenPyPlayer/RenPyPlayer/Engine/Frameworks/.gitkeep
+RenPyPlayer/RenPyPlayer/Engine/base/*
+!RenPyPlayer/RenPyPlayer/Engine/base/.gitkeep
+
 # XcodeGen-generated project (regenerated in CI)
 RenPyPlayer/RenPyPlayer.xcodeproj
 RenPyPlayer/RenPyPlayer.xcworkspace

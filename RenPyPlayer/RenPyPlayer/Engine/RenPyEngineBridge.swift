@@ -21,6 +21,7 @@ final class RenPyEngineBridge: ObservableObject {
     @Published private(set) var state: RenPyEngineState = .idle
     @Published private(set) var logs: [String] = []
     @Published private(set) var gameFileReport: String = ""
+    @Published private(set) var isNativeEngine: Bool = false
 
     private var pumpTask: Task<Void, Never>?
 
@@ -38,12 +39,15 @@ final class RenPyEngineBridge: ObservableObject {
         state = .starting
         logs.removeAll()
 
+        isNativeEngine = renpy_is_native()
+
         let gamePath = game.folderURL.path
         let savesPath = game.savesURL.path
 
         appendLog("🚀 Initializing Ren'Py Engine for: \(game.name)")
         appendLog("📁 Game root path: \(gamePath)")
         appendLog("💾 Saves directory: \(savesPath)")
+        appendLog("⚡ Native Ren'Py binary runtime linked: \(isNativeEngine ? "YES" : "NO (Stub Mode)")")
 
         // Inspect and report game files
         let report = inspectGameFiles(at: game.folderURL)
