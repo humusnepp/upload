@@ -40,6 +40,17 @@ jobs:
         run: xcodegen generate --spec project.yml
         working-directory: RenPyPlayer
 
+      # ── 4b. Verify generated project format ───────────────────────────────
+      - name: Verify project objectVersion (must be ≤ 56 for Xcode 15.4)
+        run: |
+          OBJ_VER=$(grep -m1 'objectVersion' RenPyPlayer/RenPyPlayer.xcodeproj/project.pbxproj \
+            | grep -oE '[0-9]+')
+          echo "Generated objectVersion: $OBJ_VER"
+          if [ "$OBJ_VER" -gt 56 ]; then
+            echo "ERROR: objectVersion $OBJ_VER is too new for Xcode 15.4 (max 56)"
+            exit 1
+          fi
+
       # ── 5. Resolve SPM packages ────────────────────────────────────────────
       - name: Resolve Swift packages
         run: |

@@ -3,7 +3,8 @@ options:
   bundleIdPrefix: com.renpyplayer
   deploymentTarget:
     iOS: "16.0"
-  xcodeVersion: "15.4"
+  xcodeVersion: "15.0"       # recognized token in XcodeGen's version map
+  objectVersion: "56"         # force pbxproj format 56 (Xcode 13-15); prevents format-77 generation on latest XcodeGen
   createIntermediateGroups: true
 
 packages:
