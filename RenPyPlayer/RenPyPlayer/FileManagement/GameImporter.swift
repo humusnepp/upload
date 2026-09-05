@@ -29,44 +29,71 @@ struct GameImporter {
         from sourceURL: URL,
         displayName suggestedName: String?,
         onProgress: (@Sendable (Double) -> Void)? = nil
-    ) throws -> (folderName: String, displayName: String) {
+    ) async throws -> (folderName: String, displayName: String, thumbnailPath: String?) {
         let needsSecurityScope = sourceURL.startAccessingSecurityScopedResource()
         defer {
             if needsSecurityScope { sourceURL.stopAccessingSecurityScopedResource() }
         }
 
-        let fm = FileManager.default
-        let folderName = "game_\(UUID().uuidString.prefix(8))"
-        let destination = GameLibrary.gamesRootURL.appendingPathComponent(folderName, isDirectory: true)
-        try fm.createDirectory(at: destination, withIntermediateDirectories: true)
+        return try await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            let folderName = "game_\(UUID().uuidString.prefix(8))"
+            let destination = GameLibrary.gamesRootURL.appendingPathComponent(folderName, isDirectory: true)
+            try fm.createDirectory(at: destination, withIntermediateDirectories: true)
 
-        let progress = Progress()
-        var observation: NSKeyValueObservation?
-        if let onProgress {
-            observation = progress.observe(\.fractionCompleted, options: [.new]) { prog, _ in
-                onProgress(prog.fractionCompleted)
+            let progress = Progress()
+            var observation: NSKeyValueObservation?
+            if let onProgress {
+                observation = progress.observe(\.fractionCompleted, options: [.new]) { prog, _ in
+                    onProgress(prog.fractionCompleted)
+                }
+            }
+            defer { observation?.invalidate() }
+
+            do {
+                try fm.unzipItem(at: sourceURL, to: destination, progress: progress)
+            } catch {
+                try? fm.removeItem(at: destination)
+                throw GameImportError.extractionFailed(error)
+            }
+
+            guard let gameRoot = locateGameRoot(under: destination) else {
+                try? fm.removeItem(at: destination)
+                throw GameImportError.noGameDirectoryFound
+            }
+
+            if gameRoot != destination {
+                try flatten(gameRoot: gameRoot, into: destination)
+            }
+
+            let thumb = locateThumbnail(inFolder: destination)
+            let displayName = suggestedName ?? destination.lastPathComponent
+            return (folderName, displayName, thumb)
+        }.value
+    }
+
+    private static func locateThumbnail(inFolder base: URL) -> String? {
+        let candidates = [
+            "game/gui/window_icon.png",
+            "gui/window_icon.png",
+            "game/gui/game_icon.png"
+        ]
+        for candidate in candidates {
+            if FileManager.default.fileExists(atPath: base.appendingPathComponent(candidate).path) {
+                return candidate
             }
         }
-        defer { observation?.invalidate() }
-
-        do {
-            try fm.unzipItem(at: sourceURL, to: destination, progress: progress)
-        } catch {
-            try? fm.removeItem(at: destination)
-            throw GameImportError.extractionFailed(error)
+        if let enumerator = FileManager.default.enumerator(at: base, includingPropertiesForKeys: nil) {
+            var visited = 0
+            for case let fileURL as URL in enumerator {
+                visited += 1
+                if visited > 5000 { break }
+                if fileURL.lastPathComponent == "window_icon.png" {
+                    return fileURL.path.replacingOccurrences(of: base.path + "/", with: "")
+                }
+            }
         }
-
-        guard let gameRoot = locateGameRoot(under: destination) else {
-            try? fm.removeItem(at: destination)
-            throw GameImportError.noGameDirectoryFound
-        }
-
-        if gameRoot != destination {
-            try flatten(gameRoot: gameRoot, into: destination)
-        }
-
-        let displayName = suggestedName ?? destination.lastPathComponent
-        return (folderName, displayName)
+        return nil
     }
 
     /// A Ren'Py project always has a `game/` directory containing .rpy/.rpyc

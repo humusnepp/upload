@@ -138,29 +138,21 @@ struct ImportGameView: View {
 
         Task {
             do {
-                let (folderName, displayName) = try GameImporter.importZip(
+                let (folderName, displayName, thumb) = try await GameImporter.importZip(
                     from: url,
                     displayName: suggestedName
                 ) { fraction in
                     Task { @MainActor in
-                        progress = fraction
+                        self.progress = fraction
                     }
                 }
 
-                // GameLibrary is @MainActor-isolated: every mutation of its
-                // published state has to happen on the main actor, or the
-                // app crashes with an undefined-behavior/thread-safety
-                // failure the moment a zip finishes extracting.
-                await MainActor.run {
-                    library.addImportedGame(folderName: folderName, displayName: displayName)
-                    isImporting = false
-                    dismiss()
-                }
+                library.addImportedGame(folderName: folderName, displayName: displayName, thumbnailPath: thumb)
+                isImporting = false
+                dismiss()
             } catch {
-                await MainActor.run {
-                    isImporting = false
-                    errorMessage = error.localizedDescription
-                }
+                isImporting = false
+                errorMessage = error.localizedDescription
             }
         }
     }
@@ -181,35 +173,29 @@ struct ImportGameView: View {
             do {
                 let tempURL = try await ProgressDownloader.download(from: remoteURL) { fraction in
                     Task { @MainActor in
-                        progress = fraction
+                        self.progress = fraction
                     }
                 }
 
-                await MainActor.run {
-                    progress = 0
-                    progressPhase = "Extracting…"
-                }
+                progress = 0
+                progressPhase = "Extracting…"
 
                 let suggestedName = remoteURL.deletingPathExtension().lastPathComponent
-                let (folderName, displayName) = try GameImporter.importZip(
+                let (folderName, displayName, thumb) = try await GameImporter.importZip(
                     from: tempURL,
                     displayName: suggestedName
                 ) { fraction in
                     Task { @MainActor in
-                        progress = fraction
+                        self.progress = fraction
                     }
                 }
 
-                await MainActor.run {
-                    library.addImportedGame(folderName: folderName, displayName: displayName)
-                    isImporting = false
-                    dismiss()
-                }
+                library.addImportedGame(folderName: folderName, displayName: displayName, thumbnailPath: thumb)
+                isImporting = false
+                dismiss()
             } catch {
-                await MainActor.run {
-                    isImporting = false
-                    errorMessage = error.localizedDescription
-                }
+                isImporting = false
+                errorMessage = error.localizedDescription
             }
         }
     }

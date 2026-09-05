@@ -49,8 +49,8 @@ final class GameLibrary: ObservableObject {
         try? data.write(to: indexURL, options: .atomic)
     }
 
-    func addImportedGame(folderName: String, displayName: String) {
-        let thumb = locateThumbnail(inFolder: folderName)
+    func addImportedGame(folderName: String, displayName: String, thumbnailPath: String? = nil) {
+        let thumb = thumbnailPath ?? locateThumbnail(inFolder: folderName)
         let game = Game(
             id: UUID(),
             name: displayName,
