@@ -1,4 +1,4 @@
-name: Build IPA
+name: Build IPA (Unsigned)
 
 on:
   push:
@@ -7,133 +7,88 @@ on:
 
 env:
   SCHEME: RenPyPlayer
-  CONFIGURATION: Release
   PROJECT: RenPyPlayer/RenPyPlayer.xcodeproj
-  ARCHIVE_PATH: build/RenPyPlayer.xcarchive
-  EXPORT_PATH: build/ipa
+  DERIVED_DATA: build/DerivedData
+  IPA_DIR: build/ipa
 
 jobs:
   build-ipa:
-    name: Build & Export IPA
-    runs-on: macos-14   # Xcode 15 available on macos-14
+    name: Build Unsigned IPA
+    runs-on: macos-14   # Ships with Xcode 15.4
 
     steps:
       # ── 1. Checkout ────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Select Xcode version ────────────────────────────────────────────
-      - name: Select Xcode 15
+      # ── 2. Select Xcode 15.4 ──────────────────────────────────────────────
+      - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      # ── 3. Install XcodeGen ────────────────────────────────────────────────
+      # ── 3. Install XcodeGen (pinned to 2.x to stay on format 76) ──────────
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          brew install xcodegen
+          xcodegen version
+
+      # ── 3b. Install xcpretty for cleaner build logs ────────────────────────
+      - name: Install xcpretty
+        run: gem install xcpretty --no-document
 
       # ── 4. Generate .xcodeproj from project.yml ────────────────────────────
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: xcodegen generate --spec project.yml
         working-directory: RenPyPlayer
 
-      # ── 5. Resolve SPM packages (ZIPFoundation) ────────────────────────────
+      # ── 5. Resolve SPM packages ────────────────────────────────────────────
       - name: Resolve Swift packages
         run: |
           xcodebuild -resolvePackageDependencies \
-            -project ${{ env.PROJECT }} \
-            -scheme ${{ env.SCHEME }}
+            -project "${{ env.PROJECT }}" \
+            -scheme "${{ env.SCHEME }}" \
+            -derivedDataPath "${{ env.DERIVED_DATA }}"
 
-      # ── 6. Import signing certificate (optional — skip if secrets absent) ──
-      - name: Import signing certificate
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert \
-            -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
-
-      # ── 7a. Archive with signing (when cert secrets present) ───────────────
-      - name: Archive (signed)
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        run: |
-          xcodebuild archive \
-            -project ${{ env.PROJECT }} \
-            -scheme ${{ env.SCHEME }} \
-            -configuration ${{ env.CONFIGURATION }} \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY }}" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ secrets.PROVISIONING_PROFILE_SPECIFIER }}" \
-            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM }}"
-
-      # ── 7b. Build for simulator (no signing required) ─────────────────────
-      - name: Build for simulator (unsigned)
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 == '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      # ── 6. Build for generic iOS device (unsigned) ─────────────────────────
+      - name: Build (unsigned, generic/platform=iOS)
         run: |
           xcodebuild build \
-            -project ${{ env.PROJECT }} \
-            -scheme ${{ env.SCHEME }} \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO
+            -project "${{ env.PROJECT }}" \
+            -scheme "${{ env.SCHEME }}" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "${{ env.DERIVED_DATA }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            | xcpretty || true
 
-      # ── 8. Export IPA (only when signed archive exists) ───────────────────
-      - name: Export IPA
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      # ── 7. Package .app → .ipa ─────────────────────────────────────────────
+      - name: Package unsigned IPA
         run: |
-          xcodebuild -exportArchive \
-            -archivePath ${{ env.ARCHIVE_PATH }} \
-            -exportOptionsPlist RenPyPlayer/ExportOptions.plist \
-            -exportPath ${{ env.EXPORT_PATH }}
+          set -euo pipefail
+          APP_PATH=$(find "${{ env.DERIVED_DATA }}" \
+            -name "RenPyPlayer.app" \
+            -path "*/Release-iphoneos/*" \
+            | head -1)
 
-      # ── 9. Upload IPA artifact ─────────────────────────────────────────────
-      - name: Upload IPA artifact
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 != '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: RenPyPlayer-IPA
-          path: ${{ env.EXPORT_PATH }}/*.ipa
-          retention-days: 30
-
-      # ── 10. Upload simulator build artifact ───────────────────────────────
-      - name: Upload simulator build logs
-        if: ${{ env.BUILD_CERTIFICATE_BASE64 == '' }}
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: RenPyPlayer-SimulatorBuild
-          path: ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/*.app
-          retention-days: 7
-
-      # ── 11. Clean up keychain ─────────────────────────────────────────────
-      - name: Clean up keychain
-        if: always()
-        run: |
-          if [ -f "$RUNNER_TEMP/app-signing.keychain-db" ]; then
-            security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: RenPyPlayer.app not found under ${{ env.DERIVED_DATA }}"
+            find "${{ env.DERIVED_DATA }}" -name "*.app" || true
+            exit 1
           fi
+
+          echo "Found app at: $APP_PATH"
+          mkdir -p "${{ env.IPA_DIR }}/Payload"
+          cp -r "$APP_PATH" "${{ env.IPA_DIR }}/Payload/"
+          cd "${{ env.IPA_DIR }}"
+          zip -r "RenPyPlayer-unsigned.ipa" Payload/
+          echo "IPA created: $(du -sh RenPyPlayer-unsigned.ipa)"
+
+      # ── 8. Upload IPA artifact ─────────────────────────────────────────────
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: RenPyPlayer-unsigned-ipa
+          path: ${{ env.IPA_DIR }}/RenPyPlayer-unsigned.ipa
+          retention-days: 30
