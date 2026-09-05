@@ -76,27 +76,7 @@ jobs:
           cp -r /tmp/renpy-sdk/renpy-8.2.3-sdk/renpy/common RenPyPlayer/RenPyPlayer/Engine/base/common
 
           # Ensure LogFile handles pickling gracefully
-          python3 -c "
-fn = 'RenPyPlayer/RenPyPlayer/Engine/base/renpy/log.py'
-with open(fn, 'r') as f:
-    code = f.read()
-if '__getstate__' not in code:
-    patch = '''
-    def __getstate__(self):
-        d = dict(self.__dict__)
-        d['file'] = None
-        return d
-
-    def __setstate__(self, d):
-        self.__dict__.update(d)
-        if renpy.ios:
-            self.file = real_stdout
-'''
-    code = code.replace('class LogFile(object):', 'class LogFile(object):' + patch)
-    with open(fn, 'w') as f:
-        f.write(code)
-    print('Patched LogFile __getstate__ in', fn)
-"
+          python3 -c "p='RenPyPlayer/RenPyPlayer/Engine/base/renpy/log.py'; s=open(p).read(); open(p,'w').write(s.replace('class LogFile(object):', 'class LogFile(object):\n    def __getstate__(self):\n        d=dict(self.__dict__); d[\x27file\x27]=None; return d\n    def __setstate__(self,d):\n        self.__dict__.update(d)\n        if renpy.ios: self.file=real_stdout\n'))"
           rm -f RenPyPlayer/RenPyPlayer/Engine/base/renpy/log.pyc
 
           # Copy official renpy.py entry point as main.py
