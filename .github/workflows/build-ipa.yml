@@ -25,10 +25,13 @@ jobs:
       - name: Select Xcode 15.4
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
-      # ── 3. Install XcodeGen (pinned to 2.x to stay on format 76) ──────────
-      - name: Install XcodeGen
+      # ── 3. Install XcodeGen 2.41.0 (pinned — last release using objectVersion 56) ──
+      - name: Install XcodeGen 2.41.0
         run: |
-          brew install xcodegen
+          curl -L https://github.com/yonaskolb/XcodeGen/releases/download/2.41.0/xcodegen.zip \
+            -o /tmp/xcodegen.zip
+          unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen_dir
+          sudo cp /tmp/xcodegen_dir/xcodegen /usr/local/bin/xcodegen
           xcodegen version
 
       # ── 3b. Install xcpretty for cleaner build logs ────────────────────────
