@@ -91,10 +91,11 @@ jobs:
       - name: Package unsigned IPA
         run: |
           set -euo pipefail
-          # Search broadly — path may vary by Xcode/DerivedData layout
-          APP_PATH=$(find "${{ env.DERIVED_DATA }}" \
-            -name "RenPyPlayer.app" -type d \
-            | head -1)
+          # Find the final .app product
+          APP_PATH=$(find "${{ env.DERIVED_DATA }}/Build/Products" -name "RenPyPlayer.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find "${{ env.DERIVED_DATA }}" -name "RenPyPlayer.app" -type d | head -1)
+          fi
 
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: RenPyPlayer.app not found under ${{ env.DERIVED_DATA }}"
