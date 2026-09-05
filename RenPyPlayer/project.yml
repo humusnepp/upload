@@ -30,6 +30,7 @@ targets:
         PRODUCT_NAME: RenPyPlayer
         PRODUCT_BUNDLE_IDENTIFIER: com.renpyplayer.RenPyPlayer
         SWIFT_VERSION: "5.9"
+        SWIFT_OBJC_BRIDGING_HEADER: RenPyPlayer/Engine/RenPyBridge.h
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_BITCODE: NO
         MARKETING_VERSION: "1.0"
