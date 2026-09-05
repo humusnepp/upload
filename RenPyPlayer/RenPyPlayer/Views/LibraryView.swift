@@ -12,11 +12,17 @@ struct LibraryView: View {
         NavigationStack {
             Group {
                 if library.games.isEmpty {
-                    ContentUnavailableView(
-                        "No Games Yet",
-                        systemImage: "gamecontroller",
-                        description: Text("Import a Ren'Py .zip to get started.")
-                    )
+                    VStack(spacing: 12) {
+                        Image(systemName: "gamecontroller")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary)
+                        Text("No Games Yet")
+                            .font(.headline)
+                        Text("Import a Ren'Py .zip to get started.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 20) {
