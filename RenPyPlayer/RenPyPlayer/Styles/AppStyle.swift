@@ -56,16 +56,14 @@ struct ProminentGradientButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(
-                Group {
-                    if isEnabled {
-                        AppStyle.accent
-                    } else {
-                        Color.gray.opacity(0.4)
-                    }
-                },
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
+            .background {
+                if isEnabled {
+                    AppStyle.accent
+                } else {
+                    Color.gray.opacity(0.4)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }

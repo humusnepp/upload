@@ -54,7 +54,7 @@ final class ProgressDownloader: NSObject, @unchecked Sendable, URLSessionDownloa
             continuation?.resume(throwing: error)
         }
         continuation = nil
-        session?.finishTasksAndInvalidate()
+        session.finishTasksAndInvalidate()
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
