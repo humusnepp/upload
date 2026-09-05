@@ -4,6 +4,7 @@ struct LibraryView: View {
     @EnvironmentObject private var library: GameLibrary
     @State private var showImporter = false
     @State private var showSettings = false
+    @State private var gameToLaunch: Game?
     @State private var showCrashReport = false
     @State private var crashReportText: String?
     @State private var recentEngineLog: String = ""
