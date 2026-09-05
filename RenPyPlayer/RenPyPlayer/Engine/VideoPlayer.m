@@ -24,9 +24,6 @@
 
 @end
 
-@implementation VideoPlayer
-
-- (id) initWithFile: (char *) fn {
 static UIWindow *get_active_window(void) {
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
@@ -42,6 +39,8 @@ static UIWindow *get_active_window(void) {
     return [[UIApplication sharedApplication] keyWindow];
     #pragma clang diagnostic pop
 }
+
+@implementation VideoPlayer
 
 - (id) initWithFile: (char *) fn {
     self = [ super init ];
