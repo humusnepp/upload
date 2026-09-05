@@ -141,10 +141,22 @@ struct GamePlayerView: View {
                 Text("Couldn't start this game")
                     .font(.title3.bold())
 
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                if message.contains("\n") {
+                    ScrollView {
+                        Text(message)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                    }
+                    .frame(maxHeight: 180)
+                    .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                } else {
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 if !engine.gameFileReport.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {

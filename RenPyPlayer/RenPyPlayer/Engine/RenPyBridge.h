@@ -47,4 +47,7 @@ void renpy_set_display_scale(float scale);
 /// Returns true if the native Ren'Py binary runtime is linked and active.
 bool renpy_is_native(void);
 
+/// Returns the path to the engine stdout/stderr log file.
+const char *renpy_get_log_path(void);
+
 #endif /* RenPyBridge_h */

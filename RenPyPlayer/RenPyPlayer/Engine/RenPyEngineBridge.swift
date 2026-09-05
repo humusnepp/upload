@@ -58,6 +58,35 @@ final class RenPyEngineBridge: ObservableObject {
 
         pumpTask = Task.detached(priority: .userInitiated) { [weak self] in
             await self?.appendLog("⚡ Calling renpy_start(gamePath, savesPath)...")
+            await self?.setState(.running)
+
+            // Poll log output in background so real-time engine stdout/stderr is captured
+            let logPoller = Task.detached(priority: .background) { [weak self] in
+                var lastReadOffset: UInt64 = 0
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 300_000_000) // every 300ms
+                    guard let cPath = renpy_get_log_path(),
+                          let logPath = String(validatingUTF8: cPath),
+                          !logPath.isEmpty,
+                          FileManager.default.fileExists(atPath: logPath) else {
+                        continue
+                    }
+
+                    if let handle = FileHandle(forReadingAtPath: logPath) {
+                        handle.seek(toFileOffset: lastReadOffset)
+                        let newData = handle.readDataToEndOfFile()
+                        lastReadOffset = handle.offsetInFile
+                        try? handle.close()
+
+                        if !newData.isEmpty, let text = String(data: newData, encoding: .utf8) {
+                            let lines = text.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                            for line in lines {
+                                await self?.appendLog(line)
+                            }
+                        }
+                    }
+                }
+            }
 
             let result = gamePath.withCString { gamePathC in
                 savesPath.withCString { savesPathC in
@@ -65,44 +94,49 @@ final class RenPyEngineBridge: ObservableObject {
                 }
             }
 
-            guard result == 0 else {
-                let errorExplanation: String
-                switch result {
-                case -1:
-                    errorExplanation = "renpy_start returned -1: NULL pointer passed for gamePath or savesPath."
-                case -2:
-                    errorExplanation = "renpy_start returned -2: Game directory was not found on device filesystem at:\n\(gamePath)"
-                case -3:
-                    errorExplanation = "renpy_start returned -3: Missing required 'game/' subfolder in:\n\(gamePath)\nRen'Py visual novels require a 'game/' subfolder containing script files (.rpy / .rpyc) or archives (.rpa)."
-                default:
-                    errorExplanation = "renpy_start returned error code \(result)."
-                }
+            logPoller.cancel()
 
-                await self?.appendLog("❌ Failed: \(errorExplanation)")
-                await self?.setState(.failed(errorExplanation))
-                return
+            // Read any final buffered log output
+            if let cPath = renpy_get_log_path(),
+               let logPath = String(validatingUTF8: cPath),
+               !logPath.isEmpty,
+               let fullLog = try? String(contentsOfFile: logPath, encoding: .utf8) {
+                let allLines = fullLog.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                let recentTail = allLines.suffix(20).joined(separator: "\n")
+
+                if result == 0 {
+                    await self?.appendLog("✅ renpy_start exited cleanly (code: 0)")
+                    await self?.setState(.stopped)
+                } else {
+                    let errorExplanation: String
+                    switch result {
+                    case -1:
+                        errorExplanation = "renpy_start returned -1: NULL pointer passed for gamePath or savesPath."
+                    case -2:
+                        errorExplanation = "renpy_start returned -2: Game directory was not found on device filesystem at:\n\(gamePath)"
+                    case -3:
+                        errorExplanation = "renpy_start returned -3: Missing required 'game/' subfolder in:\n\(gamePath)\nRen'Py visual novels require a 'game/' subfolder containing script files (.rpy / .rpyc) or archives (.rpa)."
+                    default:
+                        if recentTail.isEmpty {
+                            errorExplanation = "renpy_start returned error code \(result)."
+                        } else {
+                            errorExplanation = "renpy_start returned error code \(result).\n\nEngine Log Output:\n\(recentTail)"
+                        }
+                    }
+
+                    await self?.appendLog("❌ Failed: \(errorExplanation)")
+                    await self?.setState(.failed(errorExplanation))
+                }
+            } else {
+                if result == 0 {
+                    await self?.appendLog("✅ renpy_start exited cleanly (code: 0)")
+                    await self?.setState(.stopped)
+                } else {
+                    let errorExplanation = "renpy_start returned error code \(result)."
+                    await self?.appendLog("❌ Failed: \(errorExplanation)")
+                    await self?.setState(.failed(errorExplanation))
+                }
             }
-
-            await self?.appendLog("✅ renpy_start succeeded (code: 0)")
-            await self?.appendLog("🎮 Engine state -> running. Beginning pump loop...")
-            await self?.setState(.running)
-
-            var pumpCount: UInt64 = 0
-            while (await self?.state) == .running {
-                let stillRunning = renpy_pump()
-                if !stillRunning {
-                    await self?.appendLog("⏹️ renpy_pump returned false. Game exited.")
-                    break
-                }
-                pumpCount += 1
-                if pumpCount == 60 {
-                    await self?.appendLog("🔄 Engine loop healthy (first 60 frames pumped).")
-                }
-                try? await Task.sleep(nanoseconds: 16_000_000) // ~60fps pump cadence
-            }
-
-            await self?.setState(.stopped)
-            await self?.appendLog("🛑 Engine stopped.")
         }
     }
 
