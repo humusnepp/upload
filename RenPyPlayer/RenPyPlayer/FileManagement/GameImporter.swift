@@ -22,7 +22,14 @@ struct GameImporter {
     /// Imports a zip located at `sourceURL` (a security-scoped URL from the
     /// document picker, an SMB share exposed through Files, or a temp file
     /// from a URLSession download) into Documents/Games/<uniqueFolder>/.
-    static func importZip(from sourceURL: URL, displayName suggestedName: String?) throws -> (folderName: String, displayName: String) {
+    /// - Parameter onProgress: called repeatedly (from a background thread)
+    ///   with a value in 0...1 as extraction proceeds. UI code is responsible
+    ///   for hopping back to the main actor before touching view state.
+    static func importZip(
+        from sourceURL: URL,
+        displayName suggestedName: String?,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) throws -> (folderName: String, displayName: String) {
         let needsSecurityScope = sourceURL.startAccessingSecurityScopedResource()
         defer {
             if needsSecurityScope { sourceURL.stopAccessingSecurityScopedResource() }
@@ -33,8 +40,17 @@ struct GameImporter {
         let destination = GameLibrary.gamesRootURL.appendingPathComponent(folderName, isDirectory: true)
         try fm.createDirectory(at: destination, withIntermediateDirectories: true)
 
+        let progress = Progress()
+        var observation: NSKeyValueObservation?
+        if let onProgress {
+            observation = progress.observe(\.fractionCompleted, options: [.new]) { prog, _ in
+                onProgress(prog.fractionCompleted)
+            }
+        }
+        defer { observation?.invalidate() }
+
         do {
-            try fm.unzipItem(at: sourceURL, to: destination)
+            try fm.unzipItem(at: sourceURL, to: destination, progress: progress)
         } catch {
             try? fm.removeItem(at: destination)
             throw GameImportError.extractionFailed(error)

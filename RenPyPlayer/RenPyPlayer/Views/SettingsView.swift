@@ -7,25 +7,37 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Display") {
+                Section {
                     HStack {
-                        Text("Screen Scale")
-                        Slider(value: $settings.screenScale, in: 0.5...2.0, step: 0.05)
+                        Label("Screen Scale", systemImage: "arrow.up.left.and.arrow.down.right")
+                        Spacer()
                         Text(String(format: "%.2fx", settings.screenScale))
                             .monospacedDigit()
-                            .frame(width: 50, alignment: .trailing)
+                            .foregroundStyle(.secondary)
                     }
+                    Slider(value: $settings.screenScale, in: 0.5...2.0, step: 0.05)
+                        .tint(Color(red: 0.42, green: 0.36, blue: 0.98))
+                } header: {
+                    Text("Display")
                 }
 
-                Section("Text") {
+                Section {
                     HStack {
-                        Text("Text Speed")
-                        Slider(value: $settings.textSpeedOverride, in: 0.25...3.0, step: 0.05)
+                        Label("Text Speed", systemImage: "text.word.spacing")
+                        Spacer()
                         Text(String(format: "%.2fx", settings.textSpeedOverride))
                             .monospacedDigit()
-                            .frame(width: 50, alignment: .trailing)
+                            .foregroundStyle(.secondary)
                     }
-                    Toggle("Skip Mode (auto-advance seen text)", isOn: $settings.skipModeEnabled)
+                    Slider(value: $settings.textSpeedOverride, in: 0.25...3.0, step: 0.05)
+                        .tint(Color(red: 0.42, green: 0.36, blue: 0.98))
+                    Toggle(isOn: $settings.skipModeEnabled) {
+                        Label("Skip Mode", systemImage: "forward.fill")
+                    }
+                } header: {
+                    Text("Text")
+                } footer: {
+                    Text("Auto-advances text you've already seen.")
                 }
 
                 Section {
