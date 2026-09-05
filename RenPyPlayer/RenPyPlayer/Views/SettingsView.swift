@@ -8,6 +8,9 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    Toggle(isOn: $settings.fillScreen) {
+                        Label("Fill Phone Screen", systemImage: "arrow.up.left.and.arrow.down.right.and.arrow.up.right.and.arrow.down.left")
+                    }
                     HStack {
                         Label("Screen Scale", systemImage: "arrow.up.left.and.arrow.down.right")
                         Spacer()
@@ -19,6 +22,8 @@ struct SettingsView: View {
                         .tint(Color(red: 0.42, green: 0.36, blue: 0.98))
                 } header: {
                     Text("Display")
+                } footer: {
+                    Text(settings.fillScreen ? "Games expand edge-to-edge to fill the full phone display." : "Games preserve exact 16:9 ratio with letterbox bars.")
                 }
 
                 Section {
