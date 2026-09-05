@@ -3,9 +3,10 @@ options:
   bundleIdPrefix: com.renpyplayer
   deploymentTarget:
     iOS: "16.0"
-  xcodeVersion: "15.0"       # recognized token in XcodeGen's version map
-  objectVersion: "56"         # force pbxproj format 56 (Xcode 13-15); prevents format-77 generation on latest XcodeGen
+  xcodeVersion: "15.0"
+  objectVersion: "56"
   createIntermediateGroups: true
+  ALWAYS_SEARCH_USER_PATHS: NO
 
 packages:
   ZIPFoundation:
@@ -21,18 +22,19 @@ targets:
       - path: RenPyPlayer
         excludes:
           - "**/*.md"
+          - "**/*.plist"
     info:
       path: RenPyPlayer/Info.plist
     settings:
       base:
+        PRODUCT_NAME: RenPyPlayer
         PRODUCT_BUNDLE_IDENTIFIER: com.renpyplayer.RenPyPlayer
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_BITCODE: NO
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
-        SWIFT_OBJC_BRIDGING_HEADER: "RenPyPlayer/Engine/RenPyBridge.h"
-        # Code signing — overridden in CI via xcodebuild args
+        ALWAYS_SEARCH_USER_PATHS: NO
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: ""
         PROVISIONING_PROFILE_SPECIFIER: ""
