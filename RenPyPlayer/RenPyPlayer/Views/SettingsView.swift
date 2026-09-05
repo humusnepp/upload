@@ -8,11 +8,6 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Picker("Aspect Mode", selection: $settings.displayMode) {
-                        ForEach(DisplayScalingMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
                     HStack {
                         Label("Screen Scale", systemImage: "arrow.up.left.and.arrow.down.right")
                         Spacer()
@@ -25,7 +20,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Display")
                 } footer: {
-                    Text(settings.fillScreen ? "Games expand edge-to-edge to fill the full phone display." : "Games preserve exact 16:9 ratio with letterbox bars.")
+                    Text("Games automatically expand to fill your display edge-to-edge.")
                 }
 
                 Section {

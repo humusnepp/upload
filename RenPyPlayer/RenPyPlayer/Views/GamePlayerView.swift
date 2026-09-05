@@ -18,28 +18,15 @@ struct GamePlayerView: View {
             let screenRatio = screenSize.height > 0 ? (screenSize.width / screenSize.height) : (16.0 / 9.0)
 
             ZStack {
-                // ── Deep black background for pillarbox borders ───────────
+                // ── Background ────────────────────────────────────────────
                 Color.black.ignoresSafeArea()
 
-                // ── Game surface with selectable aspect ratio ─────────────
-                Group {
-                    switch settings.displayMode {
-                    case .edgeToEdge, .stretch:
-                        // Edge-to-edge: fills 100% of the display including Dynamic Island and notch
-                        SDLGameView(engine: engine)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    case .fit16x9:
-                        // 16:9 Fit: preserves exact widescreen proportion with pillarbox
-                        SDLGameView(engine: engine)
-                            .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .ignoresSafeArea()
+                // ── Game surface (fills full screen edge-to-edge) ─────────
+                SDLGameView(engine: engine)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
 
-                // ── Stub-mode placeholder overlay ─────────────────────────
-                // Rendered on top of the black SDL surface when running without
-                // the full native Ren'Py runtime linked. Displays live display metrics.
+                // ── Engine overlay ────────────────────────────────────────
                 if engine.state == .running {
                     StubGameOverlay(game: game, screenSize: screenSize, screenRatio: screenRatio)
                 }
@@ -49,10 +36,10 @@ struct GamePlayerView: View {
                     errorCard(message: message)
                 }
 
-                // ── On-screen HUD ─────────────────────────────────────────
+                // ── Clean on-screen HUD (tap screen to toggle) ────────────
                 if hudVisible || engine.state != .running {
                     VStack {
-                        HStack(spacing: 18) {
+                        HStack(spacing: 20) {
                             Button {
                                 engine.stop()
                                 dismiss()
@@ -62,16 +49,6 @@ struct GamePlayerView: View {
                             }
 
                             Spacer()
-
-                            // Screen Aspect Ratio Switcher Button
-                            Button {
-                                withAnimation {
-                                    cycleDisplayMode()
-                                }
-                            } label: {
-                                Image(systemName: settings.displayMode.icon)
-                                    .font(.title2)
-                            }
 
                             Button { showDiagnosticsSheet = true } label: {
                                 Image(systemName: "terminal.fill")
@@ -144,20 +121,6 @@ struct GamePlayerView: View {
         }
     }
 
-    private func cycleDisplayMode() {
-        switch settings.displayMode {
-        case .edgeToEdge:
-            settings.displayMode = .fit16x9
-            showToast("Display: 16:9 Fit (Pillarbox)")
-        case .fit16x9:
-            settings.displayMode = .stretch
-            showToast("Display: Stretch to Fill")
-        case .stretch:
-            settings.displayMode = .edgeToEdge
-            showToast("Display: Full Screen Edge-to-Edge")
-        }
-    }
-
     private func showToast(_ msg: String) {
         withAnimation { hudToastMessage = msg }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -227,8 +190,6 @@ struct GamePlayerView: View {
 }
 
 // ── Stub overlay ─────────────────────────────────────────────────────────────
-/// Shown over the SDL surface when the real Ren'Py SDK is not yet linked.
-/// Displays live screen dimensions and ratio to verify display geometry.
 private struct StubGameOverlay: View {
     let game: Game
     let screenSize: CGSize
@@ -261,21 +222,12 @@ private struct StubGameOverlay: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.white.opacity(0.85))
 
-                    Text("⚠️ Note: The real Ren'Py binary runtime (Python 3 + SDL2) is not linked in this build. The app shell verified the game files, but drawing visual novel frames requires the 100MB+ native Ren'Py engine libraries.")
+                    Text("⚠️ Note: The compiled Ren'Py binary runtime (Python 3 + SDL2) is not linked in this build. The app shell verified your files, but rendering game frames requires the native engine binaries.")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.65))
                         .multilineTextAlignment(.center)
                         .padding(.top, 4)
                 }
-
-                Divider()
-                    .background(Color.white.opacity(0.2))
-                    .padding(.horizontal, 40)
-
-                Text("Tap top-right aspect ratio icon to toggle Full Screen (Edge-to-Edge) vs 16:9 Fit")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.5))
-                    .multilineTextAlignment(.center)
             }
             .padding(28)
             .background(.ultraThinMaterial.opacity(0.5), in: RoundedRectangle(cornerRadius: 20))
