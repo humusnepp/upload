@@ -1,8 +1,7 @@
 #include <stdio.h>
-
-@import UIKit;
-@import AVFoundation;
-@import Dispatch;
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
 
 @interface VideoPlayerView : UIView
 @property (nonatomic) AVPlayer *player;

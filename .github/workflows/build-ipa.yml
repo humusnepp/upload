@@ -56,11 +56,6 @@ jobs:
           cp -r /tmp/renios/renios/prototype/prebuilt/release/*.a RenPyPlayer/RenPyPlayer/Engine/libs/
           cp -r /tmp/renios/renios/prototype/Frameworks/MetalANGLE.xcframework RenPyPlayer/RenPyPlayer/Engine/Frameworks/
 
-          echo "Staging Ren'Py iOS runtime Objective-C support files (Log.m, VideoPlayer.m, IAPHelper.m)..."
-          cp -f /tmp/renios/renios/prototype/Log.m RenPyPlayer/RenPyPlayer/Engine/
-          cp -f /tmp/renios/renios/prototype/VideoPlayer.m RenPyPlayer/RenPyPlayer/Engine/
-          cp -f /tmp/renios/renios/prototype/IAPHelper.m RenPyPlayer/RenPyPlayer/Engine/
-
           echo "Fetching Ren'Py 8.2.3 SDK (Python 3.9 engine & stdlib)..."
           curl -L --retry 3 "https://www.renpy.org/dl/8.2.3/renpy-8.2.3-sdk.zip" -o /tmp/renpy-sdk.zip
           mkdir -p /tmp/renpy-sdk
