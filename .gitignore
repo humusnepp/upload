@@ -1,0 +1,34 @@
+# Xcode build products
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+
+# XcodeGen-generated project (regenerated in CI)
+RenPyPlayer/RenPyPlayer.xcodeproj
+RenPyPlayer/RenPyPlayer.xcworkspace
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode user settings
+*.xcuserstate
+xcuserdata/
+
+# CocoaPods (not used here, but just in case)
+Pods/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Environment / secrets
+*.env
+.env.*
